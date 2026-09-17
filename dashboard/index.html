@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paytm TrustBox - Fraud-Proof UPI Verification & Ops Console</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header>
+    <div class="brand-section">
+      <div class="brand-badge">AI Anti-Fraud</div>
+      <h1 class="brand-title">Paytm <span>TrustBox</span></h1>
+    </div>
+
+    <div class="header-status">
+      <div class="live-indicator">
+        <div class="pulsing-dot" id="liveDot"></div>
+        <span id="connectionStatus">Connecting to Backend...</span>
+      </div>
+
+      <!-- Physical ESP32 Hardware Status Badge -->
+      <div class="hw-status-badge" id="hwBadge" title="Physical ESP32 Device Connection Status">
+        <div class="hw-pulse-dot" id="hwDot"></div>
+        <span id="hwStatusText">ESP32 Hardware: <b>Waiting for device...</b></span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <label for="langSelect" style="font-size: 12px; opacity: 0.8;">Language:</label>
+        <select id="langSelect" style="padding: 4px 8px; border-radius: 4px; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); outline: none;">
+          <option value="hi" selected style="color: black;">Hindi (हिंदी)</option>
+          <option value="en" style="color: black;">English</option>
+        </select>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <label for="midSelect" style="font-size: 12px; opacity: 0.8;">Merchant:</label>
+        <select id="midSelect" style="padding: 4px 8px; border-radius: 4px; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); outline: none;">
+          <option value="M12345678" selected style="color: black;">Rajesh Kirana (M12345678)</option>
+          <option value="M87654321" style="color: black;">Pooja Cafe (M87654321)</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- Metrics Overview Bar -->
+  <section class="metrics-strip">
+    <div class="metric-card">
+      <span class="metric-title">Total Verifications</span>
+      <span class="metric-value" id="metricTotal">14</span>
+      <span class="metric-sub">↑ Real-time updates</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-title">Frauds Prevented</span>
+      <span class="metric-value" id="metricFrauds" style="color: var(--alert-red);">3</span>
+      <span class="metric-sub" id="metricAmountSaved">₹8,250 Saved for Merchants</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-title">Active Disputes</span>
+      <span class="metric-value" id="metricDisputes" style="color: var(--warn-yellow);">2</span>
+      <span class="metric-sub">🔺 1 Resolved today</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-title">Average Latency</span>
+      <span class="metric-value" id="metricLatency">180 ms</span>
+      <span class="metric-sub">Target &lt; 500 ms</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-title">Subscription Tier</span>
+      <span class="metric-value" style="font-size: 20px; color: var(--paytm-blue);">₹149/mo</span>
+      <span class="metric-sub">Premium (vs ₹125 standard)</span>
+    </div>
+  </section>
+
+  <!-- Tab Navigation -->
+  <nav class="tab-navigation">
+    <button class="tab-btn active" onclick="switchTab('simulator')">
+      <span>📟</span> Terminal Simulator & Hardware
+    </button>
+    <button class="tab-btn" onclick="switchTab('scenarios')">
+      <span>🧪</span> PRD Scenario Studio
+    </button>
+    <button class="tab-btn" onclick="switchTab('live')">
+      <span>⚡</span> Live Verification Stream
+    </button>
+    <button class="tab-btn" onclick="switchTab('alerts')">
+      <span>⚠️</span> High-Risk Alerts <span class="badge-count" id="alertCountBadge">3</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('disputes')">
+      <span>🔺</span> Dispute Queue <span class="badge-count" id="disputeCountBadge" style="background: var(--warn-yellow); color: black;">2</span>
+    </button>
+  </nav>
+
+  <!-- Main Content Areas -->
+  <main>
+
+    <!-- TAB 1: HARDWARE SIMULATOR & TERMINAL -->
+    <div id="tab-simulator" class="tab-content active">
+      <div class="simulator-layout">
+        
+        <!-- Left: Virtual Physical Device -->
+        <div class="device-housing">
+          <div class="device-header-strip">
+            <div class="device-brand">
+              <span style="color: var(--paytm-blue); font-size: 18px;">●</span> Paytm TrustBox
+            </div>
+            <div class="rgb-led-housing">
+              <span style="font-size: 11px; color: #94a3b8;">RGB LED:</span>
+              <div class="rgb-led" id="virtualLed"></div>
+            </div>
+          </div>
+
+          <!-- 3.2" Virtual TFT Screen -->
+          <div class="tft-bezel">
+            <div class="tft-screen" id="virtualTft">
+              <!-- Rendered dynamically by dashboard.js -->
+              <div class="screen-header">
+                <span id="tftHeaderTitle">Paytm TrustBox</span>
+                <span id="tftHeaderClock">12:00</span>
+              </div>
+              <div class="screen-body" id="tftBody">
+                <div class="display-title" id="tftTitle">Rajesh Kirana Store</div>
+                <div class="display-amount" id="tftAmount">₹ Ready</div>
+                <div class="display-sub" id="tftSub">Say "Kitna aaya?" or press Verify</div>
+              </div>
+              <div class="screen-footer">
+                <span id="tftFooterLeft">MID: M12345678</span>
+                <span id="tftFooterRight">Wi-Fi: Connected</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Physical Push Buttons on Front Panel -->
+          <div class="physical-controls">
+            <div class="hw-btn-wrapper">
+              <button class="hw-button dispute-btn" id="btnDispute" title="Merchant Dispute Trigger">
+                🔺
+              </button>
+              <span class="hw-btn-label">Dispute (13)</span>
+            </div>
+
+            <div class="hw-btn-wrapper">
+              <button class="hw-button verify-btn" id="btnVerify" title="Quick Verify Payment">
+                ✔
+              </button>
+              <span class="hw-btn-label">Verify (12)</span>
+            </div>
+
+            <div class="hw-btn-wrapper">
+              <button class="hw-button voice-btn" id="btnVoice" title="Click to Speak: 'Kitna aaya?'">
+                🎙
+              </button>
+              <span class="hw-btn-label">Voice (Mic)</span>
+            </div>
+          </div>
+
+          <!-- Presence / PIR Sensor Switch -->
+          <div class="presence-switch-bar">
+            <span>IR Motion Presence Sensor (GPIO 27):</span>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="motionToggle" checked>
+              <span id="motionLabel" style="font-weight: 700; color: #4ade80;">PRESENCE ACTIVE</span>
+            </label>
+          </div>
+
+        </div>
+
+        <!-- Right: Hardware GPIO Monitor & Live Terminal Log -->
+        <div class="gpio-monitor-panel">
+          <div class="panel-header">
+            <span class="panel-title">ESP32 Pin Diagnostics & Audio Telemetry</span>
+            <span style="font-size: 12px; color: var(--text-secondary);">Baud: 115200</span>
+          </div>
+
+          <div class="pin-grid">
+            <div class="pin-cell">
+              <span class="pin-name">GPIO 13 (Dispute 🔺):</span>
+              <span class="pin-status" id="pin13">HIGH (Idle)</span>
+            </div>
+            <div class="pin-cell">
+              <span class="pin-name">GPIO 12 (Verify Btn):</span>
+              <span class="pin-status" id="pin12">HIGH (Idle)</span>
+            </div>
+            <div class="pin-cell">
+              <span class="pin-name">GPIO 27 (IR Presence):</span>
+              <span class="pin-status" id="pin27" style="color: var(--success-green);">HIGH (Detected)</span>
+            </div>
+            <div class="pin-cell">
+              <span class="pin-name">GPIO 25 (Audio DAC):</span>
+              <span class="pin-status" id="pin25">ACTIVE</span>
+            </div>
+            <div class="pin-cell">
+              <span class="pin-name">GPIO 14,32,33 (RGB):</span>
+              <span class="pin-status" id="pinRgb">OFF (0,0,0)</span>
+            </div>
+            <div class="pin-cell">
+              <span class="pin-name">GPIO 34 (INMP441 Mic):</span>
+              <span class="pin-status" id="pin34">LISTENING</span>
+            </div>
+          </div>
+
+          <!-- Spoken Audio Prompt Box -->
+          <div style="background: #f1f5f9; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 20px;">📢</span>
+            <div style="flex: 1;">
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Spoken Voice Output (TTS):</div>
+              <div id="ttsOutputText" style="font-size: 14px; font-weight: 600; color: var(--paytm-navy); margin-top: 2px;">
+                "Paytm TrustBox is ready."
+              </div>
+            </div>
+            <button class="btn-action" onclick="replayLastTts()" style="background: var(--paytm-blue-light); color: var(--paytm-navy);">Replay 🔊</button>
+          </div>
+
+          <!-- Serial Monitor Console -->
+          <div class="panel-header" style="margin-top: 6px; padding-bottom: 6px;">
+            <span style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Device Serial Monitor</span>
+            <button onclick="clearTerminal()" style="border: none; background: none; color: var(--paytm-blue); font-size: 12px; cursor: pointer;">Clear Console</button>
+          </div>
+          <div class="terminal-box" id="serialConsole">
+            <!-- Dynamic logs -->
+            <div class="terminal-line succ">[TRUSTBOX] System ready. Wi-Fi connected to Paytm Secure Gateway.</div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 2: PRD TEST SCENARIO STUDIO -->
+    <div id="tab-scenarios" class="tab-content">
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 20px; font-weight: 700; color: var(--paytm-navy);">PRD Test Scenario Studio</h2>
+        <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px;">
+          Execute predefined end-to-end fraud and verification tests defined in Section 11 of the TrustBox PRD.
+        </p>
+      </div>
+
+      <div class="scenarios-grid">
+        <!-- Scenario A -->
+        <div class="scenario-card">
+          <div>
+            <span class="scenario-badge green">Scenario A</span>
+            <h3 class="scenario-title" style="margin-top: 8px;">Legitimate UPI Payment</h3>
+            <p class="scenario-desc" style="margin-top: 6px;">
+              Simulates genuine ₹100 credit via Paytm Gateway. Terminal plays Paytm chime, displays green confirmation, and announces: <em>"Paytm TrustBox: ₹100 prapt hue"</em>.
+            </p>
+          </div>
+          <button class="run-scenario-btn" onclick="runScenarioA()">
+            <span>▶</span> Run Genuine Payment (₹100)
+          </button>
+        </div>
+
+        <!-- Scenario B -->
+        <div class="scenario-card">
+          <div>
+            <span class="scenario-badge red">Scenario B</span>
+            <h3 class="scenario-title" style="margin-top: 8px;">Fake Payment Screenshot</h3>
+            <p class="scenario-desc" style="margin-top: 6px;">
+              Buyer shows doctored screenshot for ₹500. Terminal checks Paytm Gateway, finds 0 matching record, flags <strong>Fraud Score = 1.0</strong>, and sounds alert siren.
+            </p>
+          </div>
+          <button class="run-scenario-btn" style="background: var(--alert-red);" onclick="runScenarioB()">
+            <span>▶</span> Run Fake Screenshot (₹500)
+          </button>
+        </div>
+
+        <!-- Scenario C -->
+        <div class="scenario-card">
+          <div>
+            <span class="scenario-badge yellow">Scenario C</span>
+            <h3 class="scenario-title" style="margin-top: 8px;">Spoofed Sound Alert Scam</h3>
+            <p class="scenario-desc" style="margin-top: 6px;">
+              Buyer plays a rogue fake Paytm chime on their phone. TrustBox compares against backend events, recognizes no valid payment arrived, and suppresses fake audio.
+            </p>
+          </div>
+          <button class="run-scenario-btn" style="background: #e65100;" onclick="runScenarioC()">
+            <span>▶</span> Run Sound Spoofing Test
+          </button>
+        </div>
+
+        <!-- Scenario D -->
+        <div class="scenario-card">
+          <div>
+            <span class="scenario-badge blue">Scenario D</span>
+            <h3 class="scenario-title" style="margin-top: 8px;">Network Outage & Retry</h3>
+            <p class="scenario-desc" style="margin-top: 6px;">
+              Simulates server unreachable condition. Terminal performs 3 exponential backoff retries (0.5s, 1s, 2s) and renders clear merchant network warning.
+            </p>
+          </div>
+          <button class="run-scenario-btn" style="background: #475569;" onclick="runScenarioD()">
+            <span>▶</span> Run Network Outage Test
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: LIVE VERIFICATION STREAM -->
+    <div id="tab-live" class="tab-content">
+      <div class="table-card">
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="font-size: 16px; font-weight: 700; color: var(--paytm-navy);">Live Terminal Verification Stream</h3>
+          <span style="font-size: 12px; color: var(--text-secondary);" id="liveCountText">0 events recorded</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Order / Ref</th>
+              <th>Merchant ID</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Fraud Score</th>
+              <th>Risk Level</th>
+              <th>Latency</th>
+              <th>Explainability</th>
+            </tr>
+          </thead>
+          <tbody id="transactionsTableBody">
+            <tr>
+              <td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 24px;">No verification events yet. Trigger from Terminal or run a Scenario!</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: HIGH-RISK FRAUD ALERTS -->
+    <div id="tab-alerts" class="tab-content">
+      <div class="table-card">
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: #fff5f5;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--alert-red); font-size: 18px;">⚠️</span>
+            <h3 style="font-size: 16px; font-weight: 700; color: #991b1b;">High-Risk Fraud Alerts (Score &gt; 0.70)</h3>
+          </div>
+          <span style="font-size: 12px; color: #b91c1c; font-weight: 600;">Immediate Ops Escalation Required</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Alert Time</th>
+              <th>Merchant</th>
+              <th>Order ID</th>
+              <th>Claimed Amount</th>
+              <th>Score</th>
+              <th>Primary Fraud Reason</th>
+              <th>Recommended Action</th>
+              <th>Ops Action</th>
+            </tr>
+          </thead>
+          <tbody id="alertsTableBody">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 5: DISPUTE QUEUE -->
+    <div id="tab-disputes" class="tab-content">
+      <div class="table-card">
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">🔺</span>
+            <h3 style="font-size: 16px; font-weight: 700; color: var(--paytm-navy);">Merchant Hardware Disputes (🔺 Button)</h3>
+          </div>
+          <button class="btn-action" onclick="simulateDisputeFromMerchant()" style="background: var(--alert-bg); color: var(--alert-red); border: 1px solid var(--alert-red);">+ Simulate Dispute</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Ticket ID</th>
+              <th>Raised At</th>
+              <th>Merchant</th>
+              <th>Order Reference</th>
+              <th>Reason</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Resolution Actions</th>
+            </tr>
+          </thead>
+          <tbody id="disputesTableBody">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
