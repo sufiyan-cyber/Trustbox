@@ -6,8 +6,12 @@
  * signals, and risk clustering as specified in the TrustBox PRD.
  */
 
+const CogneeService = require('./cognee_service');
+
 class FraudEngine {
-    constructor() {
+    constructor(options = {}) {
+        this.cognee = options.cogneeService || new CogneeService();
+
         // High-risk known fraudulent UPI IDs / cluster actors (simulated Cognee graph)
         this.knownFraudsters = new Set([
             'scammer.upi@fakebank',
@@ -107,16 +111,20 @@ class FraudEngine {
         }
 
         // -------------------------------------------------------------
-        // RULE 4: Known Fraudster / Graph Cluster Anomaly
+        // RULE 4: Cognee Fraud Memory Graph & Scam Cluster Anomaly
         // -------------------------------------------------------------
         const payer = gatewayResult.payerUpi || customerUpi;
-        if (payer && this.knownFraudsters.has(payer.toLowerCase())) {
-            fraudScore = Math.min(1.0, fraudScore + 0.50);
-            factors.push({
-                code: 'BLACKLISTED_PAYER',
-                weight: 0.50,
-                description: `Payer UPI (${payer}) flagged in NPCI / Paytm high-risk fraud database`
-            });
+        if (payer) {
+            const graphAnalysis = this.cognee.analyzeRiskGraphSync({ customerUpi: payer, merchantId });
+            if (graphAnalysis.isClusterMatch || this.knownFraudsters.has(payer.toLowerCase())) {
+                const penalty = graphAnalysis.graphRiskFactor || 0.40;
+                fraudScore = Math.min(1.0, fraudScore + penalty);
+                factors.push({
+                    code: 'COGNEE_SCAM_CLUSTER_DETECTED',
+                    weight: penalty,
+                    description: graphAnalysis.insight || `Payer UPI (${payer}) flagged in Cognee fraud memory graph`
+                });
+            }
         }
 
         // -------------------------------------------------------------

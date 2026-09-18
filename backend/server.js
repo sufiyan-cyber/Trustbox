@@ -30,8 +30,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../dashboard')));
 
 // Core Domain Services
+const SarvamService = require('./sarvam_service');
+const N8nService = require('./n8n_service');
+const CogneeService = require('./cognee_service');
+
 const paytmGateway = new PaytmClient();
-const fraudEngine = new FraudEngine();
+const sarvamService = new SarvamService();
+const n8nService = new N8nService();
+const cogneeService = new CogneeService();
+const fraudEngine = new FraudEngine({ cogneeService });
 const voiceService = new VoiceService();
 
 // State Storage
@@ -192,6 +199,33 @@ app.post(['/api/verify_payment', '/api/verify'], async (req, res) => {
         latencyMs
     };
 
+    // 1. Ingest incident into Cognee memory graph if high risk
+    if (riskAssessment.fraudScore >= 0.70) {
+        cogneeService.ingestIncident({
+            customerUpi: customerUpi || (gatewayResult ? gatewayResult.payerUpi : null),
+            merchantId,
+            orderId: record.orderId,
+            fraudScore: record.fraudScore,
+            reason: record.explanation
+        });
+
+        // 2. Trigger automated n8n incident workflow (WhatsApp alert & 1930 Cybercrime)
+        n8nService.triggerFraudAlert(record).then(n8nRes => {
+            broadcastEvent('N8N_ALERT_DISPATCHED', { alert: record, n8n: n8nRes });
+        }).catch(err => console.warn('[n8n] Trigger error:', err.message));
+    }
+
+    // 3. Generate Indic voice announcement via Sarvam AI
+    const sarvamSpeech = await sarvamService.generateSpeech({
+        text: voicePrompt.text,
+        languageCode: (lang === 'hi' ? 'hi-IN' : 'en-IN'),
+        speaker: 'meera'
+    });
+
+    if (sarvamSpeech && sarvamSpeech.audioBase64) {
+        record.sarvamAudio = sarvamSpeech.audioBase64;
+    }
+
     verificationLogs.unshift(record);
     if (verificationLogs.length > 100) verificationLogs.pop();
 
@@ -206,11 +240,17 @@ app.post(['/api/verify_payment', '/api/verify'], async (req, res) => {
         alertLevel: riskAssessment.riskTier,
         message: riskAssessment.explanation,
         ttsText: voicePrompt.text,
+        sarvamAudio: record.sarvamAudio || null,
         alertTone: voicePrompt.alertTone,
         factors: riskAssessment.factors,
         recommendation: riskAssessment.recommendation,
         timestamp: record.timestamp,
-        latencyMs
+        latencyMs,
+        sponsors: {
+            sarvam: { active: true, model: 'bulbul:v1' },
+            n8n: { triggered: riskAssessment.fraudScore >= 0.70 },
+            cognee: { graphAnalyzed: true }
+        }
     });
 });
 
@@ -286,6 +326,18 @@ function handleCreateDispute(merchantId, orderId, reason, res) {
 
     disputeQueue.unshift(dispute);
     broadcastEvent('DISPUTE_RAISED', dispute);
+
+    // Trigger n8n Dispute Escalation Workflow
+    n8nService.triggerDispute(dispute).catch(err => console.warn('[n8n] Dispute trigger error:', err.message));
+
+    // Ingest dispute into Cognee memory graph
+    cogneeService.ingestIncident({
+        customerUpi: 'disputed_buyer',
+        merchantId,
+        orderId: dispute.orderId,
+        fraudScore: 0.90,
+        reason: dispute.reason
+    });
 
     return res.status(201).json({
         status: 'dispute_registered',
@@ -379,6 +431,58 @@ app.get('/api/disputes', (req, res) => {
 
 app.get('/api/metrics', (req, res) => {
     res.json(metrics);
+});
+
+// ----------------------------------------------------------------------------
+// 7. SPONSOR AI INTEGRATIONS API (Sarvam AI, n8n, Cognee)
+// ----------------------------------------------------------------------------
+app.get('/api/sponsors/status', (req, res) => {
+    res.json({
+        sarvam: sarvamService.getStatus(),
+        n8n: n8nService.getStatus(),
+        cognee: cogneeService.getStatus()
+    });
+});
+
+app.post('/api/sarvam/tts', async (req, res) => {
+    const { text = 'Paytm TrustBox payment verified', languageCode = 'hi-IN', speaker = 'meera' } = req.body;
+    const result = await sarvamService.generateSpeech({ text, languageCode, speaker });
+    res.json(result);
+});
+
+app.post('/api/sarvam/stt', async (req, res) => {
+    const { languageCode = 'hi-IN' } = req.body;
+    const result = await sarvamService.transcribeAudio({ languageCode });
+    res.json(result);
+});
+
+app.get('/api/cognee/graph', (req, res) => {
+    res.json({
+        status: 'OK',
+        nodes: Array.from(cogneeService.graphNodes.entries()).map(([k, v]) => ({ id: k, ...v })),
+        edges: cogneeService.graphEdges,
+        summary: cogneeService.getStatus()
+    });
+});
+
+app.post('/api/n8n/trigger_test', async (req, res) => {
+    const testAlert = {
+        merchantId: req.body.merchantId || 'M12345678',
+        merchantName: req.body.merchantName || 'Rajesh Kirana Store',
+        orderId: 'TEST-ORD-' + Date.now().toString().slice(-4),
+        amount: req.body.amount || 500.0,
+        fraudScore: 1.0,
+        alertLevel: 'CRITICAL_FRAUD',
+        explanation: 'Manual test of n8n Telegram alert & cybercrime escalation',
+        recommendation: 'DO NOT hand over goods!'
+    };
+    const result = await n8nService.triggerFraudAlert(testAlert);
+    broadcastEvent('N8N_ALERT_DISPATCHED', { alert: testAlert, n8n: result });
+    res.json({
+        ...result,
+        telegramChatId: n8nService.telegramChatId || '1839884717',
+        target: n8nService.webhookUrl || 'n8n Cloud Webhook'
+    });
 });
 
 

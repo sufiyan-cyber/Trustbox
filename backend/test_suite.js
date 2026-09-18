@@ -188,6 +188,55 @@ async function executeAll() {
     });
 
     // -------------------------------------------------------------
+    // 4. SPONSOR AI INTEGRATIONS (Sarvam AI, n8n, Cognee)
+    // -------------------------------------------------------------
+    console.log('\n--- 4. Sponsor AI Integrations (Sarvam, n8n, Cognee) ---');
+
+    const SarvamService = require('./sarvam_service');
+    const N8nService = require('./n8n_service');
+    const CogneeService = require('./cognee_service');
+
+    const sarvam = new SarvamService();
+    const n8n = new N8nService();
+    const cognee = new CogneeService();
+
+    await runAsyncTest('Sarvam AI: Indic Speech Generation (Bulbul model)', async () => {
+        const res = await sarvam.generateSpeech({ text: 'Paytm par 100 rupaye prapt hue', languageCode: 'hi-IN' });
+        assert.strictEqual(res.success, true);
+        assert.ok(res.provider.includes('sarvam'), 'Provider must be Sarvam AI');
+    });
+
+    await runAsyncTest('n8n: Incident Automation Webhook Dispatch', async () => {
+        const res = await n8n.triggerFraudAlert({
+            merchantId: 'M12345678',
+            orderId: 'ORD-SCAM-99',
+            amount: 500.0,
+            fraudScore: 1.0,
+            alertLevel: 'CRITICAL_FRAUD',
+            explanation: 'Fake screenshot detected'
+        });
+        assert.ok(res.status.includes('DISPATCHED'), 'n8n status must indicate dispatch');
+        assert.ok(res.payload && res.payload.merchant.whatsappNumber, 'WhatsApp recipient must be present');
+    });
+
+    await runAsyncTest('Cognee: Fraud Memory Graph Scam Ring Correlation', async () => {
+        // Query known fraudster VPA
+        const graphRes = await cognee.analyzeRiskGraph({ customerUpi: 'scammer.upi@fakebank' });
+        assert.strictEqual(graphRes.isClusterMatch, true);
+        assert.strictEqual(graphRes.clusterId, 'CLUSTER-SPOOF-01');
+        assert.ok(graphRes.graphRiskFactor > 0.30, 'Risk factor must be elevated for cluster match');
+
+        // Verify FraudEngine integrates Cognee factor
+        const assessment = fraudEngine.evaluateRisk({
+            merchantId: 'M12345678',
+            orderId: 'ORD-TEST',
+            expectedAmount: 100,
+            gatewayResult: { found: true, status: 'TXN_SUCCESS', amount: 100, payerUpi: 'scammer.upi@fakebank' }
+        });
+        assert.ok(assessment.factors.some(f => f.code === 'COGNEE_SCAM_CLUSTER_DETECTED'), 'Cognee factor must be present');
+    });
+
+    // -------------------------------------------------------------
     // SUMMARY
     // -------------------------------------------------------------
     console.log('\n====================================================');

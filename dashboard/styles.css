@@ -144,6 +144,77 @@ header {
   padding: 24px 32px 12px 32px;
 }
 
+/* Sponsors AI Ecosystem Strip */
+.sponsors-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 32px 14px 32px;
+  flex-wrap: wrap;
+}
+
+.sponsor-tag-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sponsor-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  font-size: 13px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.sponsor-pill.sarvam {
+  border-left: 4px solid #8b5cf6;
+}
+
+.sponsor-pill.n8n {
+  border-left: 4px solid #ea580c;
+}
+
+.sponsor-pill.cognee {
+  border-left: 4px solid #0284c7;
+}
+
+.sponsor-name {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sponsor-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btn-test-n8n {
+  margin-left: auto;
+  background: #ea580c;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-test-n8n:hover {
+  background: #c2410c;
+}
+
 .metric-card {
   background: var(--card-bg);
   border-radius: var(--radius-md);
