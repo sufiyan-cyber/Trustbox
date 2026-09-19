@@ -1,0 +1,22 @@
+{
+  "name": "trustbox",
+  "version": "1.0.0",
+  "description": "Paytm TrustBox: Fraud-Proof UPI Verification Device & Ops Portal",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node backend/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "keywords": [
+    "paytm",
+    "trustbox",
+    "upi",
+    "fraud-prevention",
+    "soundbox"
+  ],
+  "author": "Peeter Parker (Manush, Prajwal, Sufiyan Khan S)",
+  "license": "ISC"
+}

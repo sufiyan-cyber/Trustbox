@@ -487,12 +487,14 @@ app.post('/api/n8n/trigger_test', async (req, res) => {
 
 
 // Start Server
-app.listen(PORT, () => {
-    console.log(`====================================================`);
-    console.log(` PAYTM TRUSTBOX BACKEND SERVER ACTIVE`);
-    console.log(` URL: http://localhost:${PORT}`);
-    console.log(` Ops Portal & Simulator: http://localhost:${PORT}/index.html`);
-    console.log(`====================================================`);
-});
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`====================================================`);
+        console.log(` PAYTM TRUSTBOX BACKEND SERVER ACTIVE`);
+        console.log(` URL: http://localhost:${PORT}`);
+        console.log(` Ops Portal & Simulator: http://localhost:${PORT}/index.html`);
+        console.log(`====================================================`);
+    });
+}
 
 module.exports = app;

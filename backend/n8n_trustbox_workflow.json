@@ -1,5 +1,5 @@
 {
-  "name": "Paytm TrustBox - AI Agent Fraud Orchestration & Escalation",
+  "name": "Paytm TrustBox - Multilingual Two-Way AI Security Mesh",
   "nodes": [
     {
       "parameters": {
@@ -11,8 +11,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
       "position": [
-        180,
-        280
+        160,
+        260
       ],
       "webhookId": "trustbox-alert-webhook"
     },
@@ -31,14 +31,14 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        380,
-        280
+        360,
+        260
       ]
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "={{ 'Analyze this potential UPI retail fraud: Claimed Amount: ₹' + ($json.body.incident ? $json.body.incident.claimedAmount : 500) + ', Fraud Score: ' + ($json.body.incident ? $json.body.incident.fraudScore : 1.0) + ', Suspect Reason: ' + ($json.body.incident ? $json.body.incident.reason : 'Fake screenshot') + ', Merchant: ' + ($json.body.merchant ? $json.body.merchant.name : 'Rajesh Kirana') + '. Classify the scam pattern (Doctored Screenshot, Audio Spoof, or Delay) and provide a 2-line plain advisory for the shopkeeper.' }}",
+        "text": "={{ 'Analyze this potential UPI retail fraud: Claimed Amount: ₹' + ($json.body.incident ? $json.body.incident.claimedAmount : 500) + ', Fraud Score: ' + ($json.body.incident ? $json.body.incident.fraudScore : 1.0) + ', Reason: ' + ($json.body.incident ? $json.body.incident.reason : 'Fake screenshot') + ', Merchant: ' + ($json.body.merchant ? $json.body.merchant.name : 'Rajesh Kirana') + '. Provide a 2-line plain advisory for the shopkeeper.' }}",
         "options": {
           "systemMessage": "You are the Paytm TrustBox AI Autonomous Risk Officer. You protect Tier-2/3 Indian merchants against fake UPI app scams and audio spoofing. Provide sharp, ultra-practical safety advice in 2 concise sentences."
         }
@@ -47,8 +47,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        620,
-        180
+        580,
+        160
       ],
       "continueOnFail": true
     },
@@ -63,8 +63,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        560,
-        400
+        520,
+        360
       ],
       "credentials": {
         "googlePalmApi": {
@@ -81,8 +81,8 @@
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
       "position": [
-        720,
-        400
+        680,
+        360
       ]
     },
     {
@@ -123,8 +123,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        920,
-        180
+        860,
+        160
       ],
       "credentials": {
         "telegramApi": {
@@ -149,8 +149,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1180,
-        60
+        1100,
+        40
       ],
       "continueOnFail": true
     },
@@ -169,8 +169,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1180,
-        180
+        1100,
+        160
       ],
       "continueOnFail": true
     },
@@ -189,8 +189,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1180,
-        300
+        1100,
+        280
       ],
       "continueOnFail": true
     },
@@ -202,8 +202,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1420,
-        180
+        1340,
+        160
       ],
       "continueOnFail": true
     },
@@ -237,7 +237,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        620,
+        580,
         480
       ],
       "credentials": {
@@ -263,9 +263,122 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        920,
+        860,
         480
       ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "name": "Telegram Inbound Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        160,
+        680
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-trustbox-credentials",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ Boolean($json.callback_query) }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Is Button Clicked?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        380,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $input.first().json.callback_query || {};\nconst data = cb.data || '';\nconst chatId = cb.message ? cb.message.chat.id : '1839884717';\nlet text = '✅ *Paytm TrustBox: Action Acknowledged.*';\n\nif (data === 'flag_risk') {\n  text = '⚠️ *PAYTM RISK GOVERNANCE APPLIED (जोखिम समीक्षा दर्ज)*\\n\\n• Payer UPI placed under store-level quarantine.\\n• Escalated to Paytm Risk Ops verification queue.\\n• Payer is NOT banned, but flagged for next transaction manual check.';\n} else if (data === 'request_officer') {\n  text = '👮 *PAYTM FIELD OFFICER DISPATCHED (अधिकारी अनुरोध)*\\n\\n• An Area Field Officer has been requested for Rajesh Kirana Store.\\n• Estimated Arrival: 20-30 minutes.\\n• Please retain customer until officer arrives if safe to do so.';\n} else if (data === 'cash_settled') {\n  text = '🤝 *TRANSACTION SETTLED IN CASH (नकद भुगतान दर्ज)*\\n\\n• Merchant marked transaction as resolved in cash.\\n• Risk alert dismissed, no penalty recorded for payer.\\n• Incident closed in Paytm TrustBox ledger.';\n} else if (data === 'view_evidence') {\n  text = '📋 *DISPUTE EVIDENCE DOSSIER (विवाद साक्ष्य)*\\n\\n• Device ID: ESP32-TRUSTBOX-01\\n• Verification Standard: Section 65B Evidence Act\\n• UTR Status: Pending Bank Clearing\\n• Paytm SLA: 15 minutes.';\n} else if (data === 'urgent_callback') {\n  text = '📞 *URGENT CALLBACK QUEUED (तत्काल कॉल अनुरोध)*\\n\\n• Paytm Merchant Priority Helpdesk has been alerted.\\n• You will receive a call on your registered phone within 5 minutes.';\n}\n\nreturn [{ json: { chatId, text, callbackId: cb.id } }];"
+      },
+      "name": "Format Button Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "name": "Send Button Confirmation Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        860,
+        620
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-trustbox-credentials",
+          "name": "Telegram account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $input.first().json.message || {};\nconst rawText = (msg.text || '').trim();\nconst userText = rawText.toLowerCase();\nconst chatId = msg.chat ? msg.chat.id : '1839884717';\nconst userName = msg.from ? (msg.from.first_name || 'Merchant') : 'Merchant';\n\n// Detect Language Script\nconst isHindi = /[\\u0900-\\u097F]/.test(rawText);\nconst isKannada = /[\\u0C80-\\u0CFF]/.test(rawText);\nconst isTamil = /[\\u0B80-\\u0BFF]/.test(rawText);\nconst isTelugu = /[\\u0C00-\\u0C7F]/.test(rawText);\nconst isHinglish = !isHindi && (userText.includes('kitna') || userText.includes('aaj') || userText.includes('paisa') || userText.includes('aaya') || userText.includes('bikri') || userText.includes('batao') || userText.includes('madad'));\n\nlet reply = '';\n\n// 1. Sales & Revenue Queries\nif (userText.includes('kitna') || userText.includes('sale') || userText.includes('aaj') || userText.includes('today') || userText.includes('revenue') || rawText.includes('कमाई') || rawText.includes('पैसा') || rawText.includes('ಎಷ್ಟು') || rawText.includes('ಪಾವತಿ')) {\n  if (isHindi) {\n    reply = `📊 *Paytm TrustBox आज का हिसाब (राजेश किराना स्टोर):*\\n\\n• कुल सत्यापित पेमेंट्स: *14*\\n• आज की कुल कमाई: *₹8,250.00*\\n• रोके गए फ्रॉड: *3 फर्जी स्क्रीनशॉट ब्लॉक किए गए (₹3,500 की बचत)*\\n• डिवाइस स्थिति: *🟢 ट्रस्टबॉक्स एक्टिव और सुरक्षित है*`;\n  } else if (isKannada) {\n    reply = `📊 *Paytm TrustBox ಇಂದಿನ ವರದಿ (ರಾಜೇಶ್ ಕಿರಾಣಿ ಅಂಗಡಿ):*\\n\\n• ಒಟ್ಟು ದೃಢೀಕರಿಸಿದ ಪಾವತಿಗಳು: *14*\\n• ಇಂದಿನ ಒಟ್ಟು ಆದಾಯ: *₹8,250.00*\\n• ತಡೆಹಿಡಿಯಲಾದ ವಂಚನೆಗಳು: *3 ಸ್ಕ್ಯಾಮ್‌ಗಳು ಬ್ಲಾಕ್ ಮಾಡಲಾಗಿದೆ*\\n• ಡಿವೈಸ್ ಸ್ಥಿತಿ: *🟢 ಆನ್‌ಲೈನ್ ಮತ್ತು ಸಕ್ರಿಯ*`;\n  } else if (isHinglish) {\n    reply = `📊 *Paytm TrustBox Aaj Ka Hisab (Rajesh Kirana Store):*\\n\\n• Total Verified Payments: *14*\\n• Aaj Ki Total Kamai: *₹8,250.00*\\n• Frauds Blocked: *3 Fake Screen Scams Roke Gaye (₹3,500 Bachat)*\\n• Device Status: *🟢 Online & Surakshit*`;\n  } else {\n    reply = `📊 *Paytm TrustBox Today\\'s Summary (Rajesh Kirana Store):*\\n\\n• Total Verified Payments: *14*\\n• Total Revenue: *₹8,250.00*\\n• Frauds Blocked: *3 Scams Intercepted (₹3,500 Saved)*\\n• Device Status: *🟢 Connected & Guarding*`;\n  }\n}\n// 2. Dispute Queries\nelse if (userText.includes('dispute') || userText.includes('ticket') || rawText.includes('विवाद') || rawText.includes('शिकायत') || rawText.includes('ದೂರು')) {\n  if (isHindi) {\n    reply = `🎫 *एक्टिव विवाद स्थिति:*\\n\\n• टिकट #DSP-01: *प्रगति पर है (Paytm Ops अधिकारी नियुक्त)*\\n• कारण: ग्राहक का बैंक सर्वर विलंब (SBI Network Timeout)\\n• शेष SLA समय: *8 मिनट*\\n• बैंक क्लीयरेंस होते ही आपको तुरंत सूचित किया जाएगा!`;\n  } else if (isHinglish) {\n    reply = `🎫 *Active Dispute Status:*\\n\\n• Ticket #DSP-01: *In Progress (Paytm Ops Assigned)*\\n• Reason: Customer bank server timeout\\n• SLA Remaining: *8 minutes*\\n• Bank clearing aate hi phone par notification aa jayega!`;\n  } else {\n    reply = `🎫 *Active Dispute Status:*\\n\\n• Ticket #DSP-01: *In Progress (Paytm Ops Officer Assigned)*\\n• Reason: Customer bank server clearing delay\\n• SLA Remaining: *8 minutes*\\n• You will be notified the second clearing completes!`;\n  }\n}\n// 3. Greeting / Help\nelse if (userText.includes('help') || userText.includes('hi') || userText.includes('hello') || rawText.includes('नमस्ते') || rawText.includes('मदद') || rawText.includes('ನಮಸ್ಕಾರ') || rawText.includes('ಸಹಾಯ')) {\n  if (isHindi) {\n    reply = `नमस्ते ${userName} जी! 🙏 मैं आपका **Paytm TrustBox AI सहायक** हूँ।\\n\\n*आप मुझसे हिंदी, हिंग्लिश या कन्नड़ में पूछ सकते हैं:*\\n• \\\"आज कितना पैसा आया?\\\" (कमाई चेक करें)\\n• \\\"डिस्प्यूट का क्या हुआ?\\\" (शिकायत स्टेटस)\\n• या फ्रॉड अलर्ट पर दिए गए एक्शन बटन दबाएं।`;\n  } else if (isKannada) {\n    reply = `ನಮಸ್ಕಾರ ${userName}! 🙏 ನಾನು ನಿಮ್ಮ **Paytm TrustBox AI ಸಹಾಯಕ**.\\n\\n*ನೀವು ನನ್ನನ್ನು ಹೀಗೆ ಕೇಳಬಹುದು:*\\n• \\\"ಇವತ್ತು ಎಷ್ಟು ಪಾವತಿ ಬಂದಿದೆ?\\\" (ಆದಾಯ ವರದಿ)\\n• \\\"ದೂರು ಸ್ಥಿತಿ ಏನು?\\\" (ಡಿಸ್ಪ್ಯೂಟ್ ಸ್ಟೇಟಸ್)`;\n  } else if (isHinglish) {\n    reply = `Namaste ${userName} ji! 🙏 Main aapka **Paytm TrustBox AI Guardian** hoon.\\n\\n*Aap mujhse pooch sakte hain:*\\n• \\\"Kitna aaya aaj?\\\" (Aaj ki kamai dekhein)\\n• \\\"Dispute status\\\" (Pending ticket status dekhein)\\n• Ya fraud alert aane par buttons tap karein.`;\n  } else {\n    reply = `Hello ${userName}! 🙏 I am your **Paytm TrustBox 2-Way Voice & Chat Guardian**.\\n\\n*You can ask me in Hindi, Hinglish, Kannada, or English:*\\n• \\\"How much sales today?\\\" (Daily revenue report)\\n• \\\"Dispute status\\\" (Track ongoing ticket status)\\n• Tap any action buttons on fraud alerts to flag payers.`;\n  }\n}\n// 4. Default Intelligent Fallback\nelse {\n  if (isHindi) {\n    reply = `🤖 *Paytm TrustBox AI सहायक:*\\n\\nमुझे आपका संदेश प्राप्त हुआ: \\\"${rawText}\\\"।\\n\\nराजेश किराना स्टोर का ट्रस्टबॉक्स टर्मिनल सक्रिय है। आज 14 वास्तविक पेमेंट्स प्राप्त हुईं और 3 फर्जी स्क्रीनशॉट फ्रॉड सफलतापूर्वक ब्लॉक किए गए।`;\n  } else if (isHinglish) {\n    reply = `🤖 *Paytm TrustBox AI Assistant:*\\n\\nAapka message mila: \\\"${rawText}\\\".\\n\\nRajesh Kirana Store ka TrustBox terminal 100% active hai. Aaj 14 payments successfully credit hui hain aur 3 scams roke gaye hain.`;\n  } else {\n    reply = `🤖 *Paytm TrustBox Multilingual Assistant:*\\n\\nReceived your message: \\\"${rawText}\\\".\\n\\nYour TrustBox terminal is actively monitoring bank ledgers and acoustic chimes. 14 genuine transactions confirmed today, 3 fraud attempts intercepted.`;\n  }\n}\n\nreturn [{ json: { chatId, reply } }];"
+      },
+      "name": "Paytm Multilingual AI Chatbot Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        780
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.reply }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "name": "Send Chatbot Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        860,
+        780
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-trustbox-credentials",
+          "name": "Telegram account"
+        }
+      },
       "continueOnFail": true
     }
   ],
@@ -368,9 +481,60 @@
           }
         ]
       ]
+    },
+    "Telegram Inbound Trigger": {
+      "main": [
+        [
+          {
+            "node": "Is Button Clicked?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Button Clicked?": {
+      "main": [
+        [
+          {
+            "node": "Format Button Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Paytm Multilingual AI Chatbot Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Button Response": {
+      "main": [
+        [
+          {
+            "node": "Send Button Confirmation Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Paytm Multilingual AI Chatbot Engine": {
+      "main": [
+        [
+          {
+            "node": "Send Chatbot Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {},
-  "versionId": "trustbox-n8n-gemini-ai-agent-v6"
+  "versionId": "trustbox-n8n-multilingual-v8"
 }
