@@ -87,14 +87,19 @@
       <span class="sponsor-name">n8n</span>
       <span class="sponsor-status" id="n8nStatusBadge">Incident Automation</span>
     </div>
-    <div class="sponsor-pill cognee" id="pillCognee" title="Cognee: Fraud Memory Graph & Scam Ring Clustering">
+    <div class="sponsor-pill cognee" id="pillCognee" title="Cognee: Fraud Memory Graph & Scam Ring Clustering - Click to open Knowledge Graph" onclick="openCogneeModal()" style="cursor: pointer;">
       <span class="sponsor-icon">🔵</span>
       <span class="sponsor-name">Cognee</span>
       <span class="sponsor-status" id="cogneeStatusBadge">Memory Graph Active</span>
     </div>
-    <button class="btn-test-n8n" onclick="testN8nWorkflow()" title="Trigger a test incident into n8n Telegram alert workflow">
-      ⚡ Test n8n Telegram Alert
-    </button>
+    <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+      <button class="btn-cognee-graph" onclick="openCogneeModal()" title="View Cognee AI Fraud Memory Graph & Scam Ring Clustering">
+        🕸️ View Cognee Graph
+      </button>
+      <button class="btn-test-n8n" onclick="testN8nWorkflow()" title="Trigger a test incident into n8n Telegram alert workflow">
+        ⚡ Test n8n Telegram Alert
+      </button>
+    </div>
   </section>
 
   <!-- Tab Navigation -->
@@ -406,6 +411,67 @@
             <!-- Populated dynamically -->
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Cognee AI Memory Graph Visualizer Modal -->
+    <div id="cogneeModal" class="cognee-modal-overlay" style="display: none;" onclick="handleModalBackdropClick(event)">
+      <div class="cognee-modal-box">
+        <div class="cognee-modal-header">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 26px;">🧠</span>
+            <div>
+              <h3 style="margin: 0; font-size: 18px; color: #38bdf8; display: flex; align-items: center; gap: 8px;">
+                Cognee AI: Fraud Memory & Syndicate Graph
+                <span style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 2px 8px; border-radius: 12px; font-weight: 700;">LIVE TOPOLOGY</span>
+              </h3>
+              <p style="margin: 3px 0 0; font-size: 12px; color: #94a3b8;">
+                Real-time entity knowledge graph tracking mule VPAs, scam rings, and cross-shop immunization
+              </p>
+            </div>
+          </div>
+          <button class="btn-close-modal" onclick="closeCogneeModal()">&times;</button>
+        </div>
+
+        <!-- Quick Metrics Bar -->
+        <div class="cognee-stats-bar">
+          <div class="cognee-stat-item">
+            <span class="lbl">Tracked Entities</span>
+            <span class="val" id="cStatNodes">8 Nodes</span>
+          </div>
+          <div class="cognee-stat-item">
+            <span class="lbl">Active Scam Rings</span>
+            <span class="val" id="cStatClusters" style="color: #ef4444;">2 Clusters</span>
+          </div>
+          <div class="cognee-stat-item">
+            <span class="lbl">Mule VPAs Flagged</span>
+            <span class="val" id="cStatVpas" style="color: #f97316;">6 Accounts</span>
+          </div>
+          <div class="cognee-stat-item">
+            <span class="lbl">Memory Engine</span>
+            <span class="val" id="cStatBackend" style="color: #10b981;">Cognee Cloud</span>
+          </div>
+        </div>
+
+        <!-- Interactive Canvas Area -->
+        <div class="cognee-canvas-wrapper">
+          <canvas id="cogneeCanvas" width="900" height="420"></canvas>
+          <div class="cognee-canvas-hint">
+            💡 <b>Interactive:</b> Hover or click any node to inspect scam patterns, risk weight (+0.35), and cross-shop links.
+          </div>
+          <div class="cognee-legend">
+            <span class="legend-chip"><span class="legend-dot dot-cluster"></span> Scam Cluster</span>
+            <span class="legend-chip"><span class="legend-dot dot-vpa"></span> Mule / Fraud VPA</span>
+            <span class="legend-chip"><span class="legend-dot dot-merchant"></span> Protected Shop</span>
+          </div>
+        </div>
+
+        <!-- Inspector Detail Drawer -->
+        <div id="cogneeInspector" class="cognee-inspector">
+          <div style="color: #94a3b8; font-size: 13px;">
+            👉 Click on any node on the graph (e.g. <b>CLUSTER-SPOOF-01</b> or <b>scammer.upi@fakebank</b>) to view its entity relationship profile.
+          </div>
+        </div>
       </div>
     </div>
 

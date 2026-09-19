@@ -944,3 +944,357 @@ async function updateMetrics() {
         console.error('Metrics update error:', e);
     }
 }
+
+// ----------------------------------------------------------------------------
+// 10. COGNEE AI: KNOWLEDGE GRAPH VISUALIZER & MODAL
+// ----------------------------------------------------------------------------
+let cogneeGraphData = null;
+let cogneeAnimFrame = null;
+let cogneeCanvasNodes = [];
+let cogneeCanvasEdges = [];
+let hoveredNode = null;
+let selectedNode = null;
+let graphTime = 0;
+
+function openCogneeModal() {
+    const modal = document.getElementById('cogneeModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    initCogneeGraph();
+}
+
+function closeCogneeModal() {
+    const modal = document.getElementById('cogneeModal');
+    if (modal) modal.style.display = 'none';
+    if (cogneeAnimFrame) {
+        cancelAnimationFrame(cogneeAnimFrame);
+        cogneeAnimFrame = null;
+    }
+}
+
+function handleModalBackdropClick(event) {
+    if (event.target.id === 'cogneeModal') {
+        closeCogneeModal();
+    }
+}
+
+async function initCogneeGraph() {
+    try {
+        const res = await fetch('/api/cognee/graph');
+        const data = await res.json();
+        cogneeGraphData = data;
+
+        // Populate Stats Bar
+        const clusters = data.nodes.filter(n => n.type === 'SCAM_CLUSTER');
+        const vpas = data.nodes.filter(n => n.type === 'FRAUDULENT_VPA');
+        
+        document.getElementById('cStatNodes').textContent = `${data.nodes.length + 2} Nodes`;
+        document.getElementById('cStatClusters').textContent = `${clusters.length} Clusters`;
+        document.getElementById('cStatVpas').textContent = `${vpas.length} Accounts`;
+        if (data.summary && data.summary.status) {
+            document.getElementById('cStatBackend').textContent = data.summary.status;
+        }
+
+        layoutCogneeNodes(data);
+        startCogneeCanvas();
+    } catch (e) {
+        console.error('Failed to load Cognee graph:', e);
+    }
+}
+
+function layoutCogneeNodes(data) {
+    const canvas = document.getElementById('cogneeCanvas');
+    const width = canvas.width || 900;
+    const height = canvas.height || 420;
+
+    cogneeCanvasNodes = [];
+    cogneeCanvasEdges = [];
+
+    // Distinct cluster centers
+    const clusterPositions = {
+        'CLUSTER-SPOOF-01': { x: width * 0.28, y: height * 0.52 },
+        'CLUSTER-AUDIO-02': { x: width * 0.72, y: height * 0.52 }
+    };
+
+    // 1. Position Clusters
+    data.nodes.filter(n => n.type === 'SCAM_CLUSTER').forEach(n => {
+        const pos = clusterPositions[n.id] || { x: width * 0.5, y: height * 0.5 };
+        cogneeCanvasNodes.push({
+            id: n.id,
+            type: 'SCAM_CLUSTER',
+            label: n.data?.clusterName || n.id,
+            shortLabel: n.id,
+            x: pos.x,
+            y: pos.y,
+            baseX: pos.x,
+            baseY: pos.y,
+            radius: 30,
+            color: '#ef4444',
+            glowColor: 'rgba(239, 68, 68, 0.4)',
+            data: n.data,
+            icon: '🚨'
+        });
+    });
+
+    // 2. Position VPAs orbiting their parent cluster
+    const clusterVpaCounts = {};
+    data.nodes.filter(n => n.type === 'FRAUDULENT_VPA').forEach(n => {
+        const cId = n.clusterId || 'CLUSTER-SPOOF-01';
+        clusterVpaCounts[cId] = (clusterVpaCounts[cId] || 0) + 1;
+    });
+
+    const clusterVpaIndex = {};
+    data.nodes.filter(n => n.type === 'FRAUDULENT_VPA').forEach(n => {
+        const cId = n.clusterId || 'CLUSTER-SPOOF-01';
+        const center = clusterPositions[cId] || { x: width * 0.5, y: height * 0.5 };
+        const totalInCluster = clusterVpaCounts[cId] || 4;
+        const idx = clusterVpaIndex[cId] || 0;
+        clusterVpaIndex[cId] = idx + 1;
+
+        // Distribute in arc around cluster
+        const angle = (idx / totalInCluster) * Math.PI * 2 + (cId === 'CLUSTER-SPOOF-01' ? 0.3 : 1.2);
+        const dist = 115;
+        const x = center.x + Math.cos(angle) * dist;
+        const y = center.y + Math.sin(angle) * dist;
+
+        cogneeCanvasNodes.push({
+            id: n.id,
+            type: 'FRAUDULENT_VPA',
+            label: n.id,
+            shortLabel: n.id.length > 18 ? n.id.slice(0, 16) + '...' : n.id,
+            clusterId: cId,
+            riskWeight: n.riskWeight || 0.35,
+            x,
+            y,
+            baseX: x,
+            baseY: y,
+            angle,
+            radius: 17,
+            color: '#f97316',
+            glowColor: 'rgba(249, 115, 22, 0.4)',
+            icon: '⚠️'
+        });
+    });
+
+    // 3. Add Protected Merchant Nodes
+    const merchants = [
+        { id: 'M12345678', name: 'Rajesh Kirana (Store 1)', x: width * 0.50, y: height * 0.20 },
+        { id: 'M87654321', name: 'Gupta Medicals (Store 2)', x: width * 0.50, y: height * 0.82 }
+    ];
+
+    merchants.forEach(m => {
+        cogneeCanvasNodes.push({
+            id: m.id,
+            type: 'PROTECTED_MERCHANT',
+            label: `${m.name} [${m.id}]`,
+            shortLabel: m.id,
+            x: m.x,
+            y: m.y,
+            baseX: m.x,
+            baseY: m.y,
+            radius: 22,
+            color: '#10b981',
+            glowColor: 'rgba(16, 185, 129, 0.4)',
+            icon: '🏪'
+        });
+    });
+
+    // 4. Map Edges
+    cogneeCanvasEdges = (data.edges || []).map(e => ({
+        source: e.source,
+        target: e.target,
+        relationship: e.relationship
+    }));
+}
+
+function startCogneeCanvas() {
+    const canvas = document.getElementById('cogneeCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    // Register mouse handlers
+    canvas.onmousemove = (evt) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const mx = (evt.clientX - rect.left) * scaleX;
+        const my = (evt.clientY - rect.top) * scaleY;
+
+        hoveredNode = cogneeCanvasNodes.find(n => {
+            const dx = n.x - mx;
+            const dy = n.y - my;
+            return Math.sqrt(dx * dx + dy * dy) <= n.radius + 6;
+        });
+
+        canvas.style.cursor = hoveredNode ? 'pointer' : 'default';
+    };
+
+    canvas.onclick = () => {
+        if (hoveredNode) {
+            selectedNode = hoveredNode;
+            renderNodeInspector(selectedNode);
+        }
+    };
+
+    function animate() {
+        graphTime += 0.025;
+
+        // Subtle organic float animation
+        cogneeCanvasNodes.forEach((node, i) => {
+            const wobble = Math.sin(graphTime + i * 1.5) * 3;
+            node.y = node.baseY + wobble;
+        });
+
+        // Clear Canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw background subtle grid dots
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.05)';
+        for (let x = 20; x < canvas.width; x += 40) {
+            for (let y = 20; y < canvas.height; y += 40) {
+                ctx.beginPath();
+                ctx.arc(x, y, 1, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // 1. Draw Edges
+        cogneeCanvasEdges.forEach(edge => {
+            const src = cogneeCanvasNodes.find(n => n.id === edge.source);
+            const tgt = cogneeCanvasNodes.find(n => n.id === edge.target);
+            if (!src || !tgt) return;
+
+            const isHighlighted = (hoveredNode && (hoveredNode.id === src.id || hoveredNode.id === tgt.id)) ||
+                                  (selectedNode && (selectedNode.id === src.id || selectedNode.id === tgt.id));
+
+            ctx.beginPath();
+            ctx.moveTo(src.x, src.y);
+            ctx.lineTo(tgt.x, tgt.y);
+
+            if (edge.relationship === 'TARGETED_MERCHANT') {
+                ctx.strokeStyle = isHighlighted ? 'rgba(56, 189, 248, 0.9)' : 'rgba(56, 189, 248, 0.35)';
+                ctx.setLineDash([5, 4]);
+            } else {
+                ctx.strokeStyle = isHighlighted ? 'rgba(239, 68, 68, 0.9)' : 'rgba(148, 163, 184, 0.25)';
+                ctx.setLineDash([]);
+            }
+            ctx.lineWidth = isHighlighted ? 2.5 : 1.5;
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Animated traveling energy pulses on edges
+            const pulseT = (graphTime * 0.8 + (src.x % 5)) % 1;
+            const px = src.x + (tgt.x - src.x) * pulseT;
+            const py = src.y + (tgt.y - src.y) * pulseT;
+            ctx.beginPath();
+            ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = edge.relationship === 'TARGETED_MERCHANT' ? '#38bdf8' : '#f97316';
+            ctx.shadowColor = ctx.fillStyle;
+            ctx.shadowBlur = 6;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        });
+
+        // 2. Draw Nodes
+        cogneeCanvasNodes.forEach(node => {
+            const isHover = hoveredNode && hoveredNode.id === node.id;
+            const isSel = selectedNode && selectedNode.id === node.id;
+
+            // Outer Aura Glow
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, node.radius + (isHover ? 10 : 5), 0, Math.PI * 2);
+            ctx.fillStyle = node.glowColor;
+            ctx.fill();
+
+            // Main Circle
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#0f172a';
+            ctx.fill();
+            ctx.lineWidth = isHover || isSel ? 3.5 : 2;
+            ctx.strokeStyle = isHover || isSel ? '#ffffff' : node.color;
+            ctx.stroke();
+
+            // Icon
+            ctx.font = `${node.radius * 0.9}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(node.icon, node.x, node.y + 1);
+
+            // Label
+            ctx.font = isHover || isSel ? 'bold 11px Inter, sans-serif' : '10px Inter, sans-serif';
+            ctx.fillStyle = isHover || isSel ? '#ffffff' : '#cbd5e1';
+            ctx.fillText(node.shortLabel, node.x, node.y + node.radius + 14);
+        });
+
+        cogneeAnimFrame = requestAnimationFrame(animate);
+    }
+
+    if (cogneeAnimFrame) cancelAnimationFrame(cogneeAnimFrame);
+    cogneeAnimFrame = requestAnimationFrame(animate);
+}
+
+function renderNodeInspector(node) {
+    const inspector = document.getElementById('cogneeInspector');
+    if (!inspector) return;
+
+    if (node.type === 'SCAM_CLUSTER') {
+        inspector.innerHTML = `
+            <div style="display: flex; gap: 14px; align-items: center; width: 100%;">
+                <span style="font-size: 30px;">🚨</span>
+                <div style="flex: 1;">
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 4px;">
+                        <strong style="color: #ef4444; font-size: 15px;">${node.data?.clusterName || node.id}</strong>
+                        <span style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">CRITICAL RISK RING</span>
+                    </div>
+                    <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 4px;">
+                        <b>Behavioral Pattern:</b> ${node.data?.pattern || 'Repeated payment spoofing & doctored receipts'}
+                    </div>
+                    <div style="font-size: 11px; color: #94a3b8;">
+                        <b>Linked Mule Accounts:</b> ${node.data?.vpas?.join(', ') || 'N/A'} | <b>Targeted Shops:</b> ${node.data?.victimMerchants?.join(', ')}
+                    </div>
+                </div>
+                <button onclick="simulateClusterBlock('${node.id}')" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                    Block Entire Syndicate
+                </button>
+            </div>
+        `;
+    } else if (node.type === 'FRAUDULENT_VPA') {
+        inspector.innerHTML = `
+            <div style="display: flex; gap: 14px; align-items: center; width: 100%;">
+                <span style="font-size: 28px;">⚠️</span>
+                <div style="flex: 1;">
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 4px;">
+                        <strong style="color: #f97316; font-size: 14px;">${node.id}</strong>
+                        <span style="background: rgba(249, 115, 22, 0.2); color: #f97316; border: 1px solid #f97316; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">FLAGGED MULE VPA</span>
+                        <span style="color: #94a3b8; font-size: 11px;">ML Graph Penalty: <b>+0.35</b></span>
+                    </div>
+                    <div style="font-size: 12px; color: #cbd5e1;">
+                        <b>Syndicate Membership:</b> Linked to <span style="color: #ef4444;">${node.clusterId}</span>. Automatic TrustBox siren & audio warning triggered if this VPA initiates UPI intent.
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (node.type === 'PROTECTED_MERCHANT') {
+        inspector.innerHTML = `
+            <div style="display: flex; gap: 14px; align-items: center; width: 100%;">
+                <span style="font-size: 28px;">🏪</span>
+                <div style="flex: 1;">
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 4px;">
+                        <strong style="color: #10b981; font-size: 14px;">${node.label}</strong>
+                        <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">TRUSTBOX ACTIVE IMMUNITY</span>
+                    </div>
+                    <div style="font-size: 12px; color: #cbd5e1;">
+                        Protected by Cognee Memory Graph mesh. If a scammer attempts fraud at any linked store, this merchant's device is pre-emptively immunized.
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function simulateClusterBlock(clusterId) {
+    alert(`🛡️ Syndicate Blacklisted across Cognee Memory Mesh!\n\nCluster: ${clusterId}\n• All linked mule VPAs blocked.\n• 1930 Cybercrime notice auto-drafted.`);
+    logSerial(`[COGNEE MESH] Cluster ${clusterId} blacklisted across 1,280 merchant TrustBoxes!`, 'succ');
+}
+

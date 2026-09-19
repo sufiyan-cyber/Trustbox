@@ -199,7 +199,6 @@ header {
 }
 
 .btn-test-n8n {
-  margin-left: auto;
   background: #ea580c;
   color: white;
   border: none;
@@ -213,6 +212,187 @@ header {
 
 .btn-test-n8n:hover {
   background: #c2410c;
+}
+
+.btn-cognee-graph {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-cognee-graph:hover {
+  background: linear-gradient(135deg, #0369a1, #075985);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(2, 132, 199, 0.4);
+}
+
+/* ============================================================================
+   COGNEE KNOWLEDGE GRAPH MODAL & CANVAS
+   ============================================================================ */
+.cognee-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.cognee-modal-box {
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  max-width: 940px;
+  width: 100%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(2, 132, 199, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: cogneeModalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cogneeModalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.cognee-modal-header {
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #1e293b;
+  background: rgba(30, 41, 59, 0.6);
+}
+
+.btn-close-modal {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 26px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.btn-close-modal:hover {
+  color: #f8fafc;
+}
+
+.cognee-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 12px 24px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  gap: 12px;
+}
+
+.cognee-stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.cognee-stat-item .lbl {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.cognee-stat-item .val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-top: 2px;
+}
+
+.cognee-canvas-wrapper {
+  position: relative;
+  background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+#cogneeCanvas {
+  display: block;
+  width: 100%;
+  max-width: 900px;
+  height: 400px;
+  cursor: default;
+}
+
+.cognee-canvas-hint {
+  position: absolute;
+  top: 12px;
+  left: 20px;
+  font-size: 11px;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.85);
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  pointer-events: none;
+}
+
+.cognee-legend {
+  position: absolute;
+  bottom: 12px;
+  right: 20px;
+  display: flex;
+  gap: 14px;
+  background: rgba(15, 23, 42, 0.85);
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  font-size: 11px;
+}
+
+.legend-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #cbd5e1;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-cluster { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.8); }
+.dot-vpa { background: #f97316; box-shadow: 0 0 8px rgba(249, 115, 22, 0.8); }
+.dot-merchant { background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.8); }
+
+.cognee-inspector {
+  padding: 14px 24px;
+  background: #090d16;
+  border-top: 1px solid #1e293b;
+  min-height: 75px;
+  display: flex;
+  align-items: center;
 }
 
 .metric-card {
